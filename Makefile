@@ -122,3 +122,13 @@ clean: ## Clean up the virtual environment and Python cache files
 	@rm -rf $(VENV)
 	@find . -type f -name '*.pyc' -delete
 	@find . -type d -name '__pycache__' -delete
+
+.PHONY: lint
+lint: ## Lint the Python source code
+	@echo "Running target: lint"
+	@$(LINT_CMD)
+
+.PHONY: fmt
+fmt: ## Format the Python source code
+	@echo "Running target: fmt"
+	@$(FMT_CMD)
