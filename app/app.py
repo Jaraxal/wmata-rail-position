@@ -11,7 +11,8 @@ import ecs_logging
 import elasticapm
 import requests
 from config import config as CFG
-from elasticsearch.exceptions import ConnectionError, RequestError, TransportError
+from elasticsearch.exceptions import (ConnectionError, RequestError,
+                                      TransportError)
 from elasticsearch.helpers import streaming_bulk
 from google.protobuf.json_format import MessageToDict
 from google.transit import gtfs_realtime_pb2
@@ -92,9 +93,7 @@ def validate_config(cfg: dict, required_keys: List[str], category: str) -> None:
     ]
 
     if missing_keys:
-        logger.error(
-            f"Missing configuration {category.lower()} in app/config/{category.lower()}.toml:"
-        )
+        logger.error( f"Missing configuration {category.lower()} in app/config/{category.lower()}.toml:")
         for key in missing_keys:
             logger.error(f" - {key}")
         sys.exit(1)
@@ -170,10 +169,7 @@ def format_data(records: gtfs_realtime_pb2.FeedMessage) -> List[Dict[str, Any]]:
             record["hash"] = record_hash
 
             # Extract location data if available
-            if (
-                record["vehicle"]["position"]["longitude"]
-                and record["vehicle"]["position"]["latitude"]
-            ):
+            if ( record["vehicle"]["position"]["longitude"] and record["vehicle"]["position"]["latitude"]):
                 record["location"] = {
                     "lon": record["vehicle"]["position"]["longitude"],
                     "lat": record["vehicle"]["position"]["latitude"],
@@ -197,9 +193,7 @@ def send_to_elasticsearch(
         index_name (str): Elasticsearch index name.
     """
     with elasticapm.capture_span(name="send_to_elasticsearch"):  # type: ignore
-        logger.info(
-            f"Sending {len(records)} records to Elasticsearch index {index_name}."
-        )
+        logger.info( f"Sending {len(records)} records to Elasticsearch index {index_name}.")
         try:
             for ok, action in streaming_bulk(
                 client=es_client,
@@ -269,9 +263,7 @@ def main():
     # Validate the Elasticsearch connection
     try:
         if not es_client.ping():
-            logger.error(
-                "Failed to connect to Elasticsearch. Please check the configuration."
-            )
+            logger.error( "Failed to connect to Elasticsearch. Please check the configuration.")
             sys.exit(1)
         else:
             logger.info("Successfully connected to Elasticsearch.")
@@ -295,16 +287,11 @@ def main():
     while True:
         apm_client.begin_transaction(transaction_type="script")
 
-        raw_data = query_wmata_api(
-            url=CFG["SETTINGS"]["WMATA_API_URL"],
-            api_key=CFG["SECRETS"]["WMATA_API_KEY"],
-        )
+        raw_data = query_wmata_api( url=CFG["SETTINGS"]["WMATA_API_URL"], api_key=CFG["SECRETS"]["WMATA_API_KEY"],)
 
         if raw_data:
             formatted_data = format_data(raw_data)
-            send_to_elasticsearch(
-                es_client, formatted_data, CFG["SETTINGS"]["INDEX_NAME"]
-            )
+            send_to_elasticsearch( es_client, formatted_data, CFG["SETTINGS"]["INDEX_NAME"])
             apm_client.end_transaction(__name__, result="success")
 
         else:
