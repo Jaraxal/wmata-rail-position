@@ -149,7 +149,7 @@ def query_wmata_api(url: str, api_key: str) -> gtfs_realtime_pb2.FeedMessage | N
             response = requests.get(url, headers={"api_key": api_key})
             feed.ParseFromString(response.content)
             return feed
-        except ClientError as e:
+        except requests.exceptions.RequestException as e:
             logger.error("Error fetching data from WMATA API.")
             logger.error(e)
             apm_client.capture_exception()
