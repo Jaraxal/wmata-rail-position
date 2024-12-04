@@ -1,0 +1,7 @@
+{
+  "match": {
+    "indices": "wmata-rail-stops",
+    "match_field": "stop_id",
+    "enrich_fields": ["stop_name","stop_desc","stop_lat","stop_lon","zone_id","location_type","parent_station","wheelchair_boarding","level_id"]
+  }
+}

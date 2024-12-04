@@ -1,0 +1,31 @@
+{
+  "processors": [
+    {
+      "enrich": {
+        "description": "Add 'route' data based on 'routeId'",
+        "policy_name": "wmata-rail-routes-policy",
+        "field": "vehicle.trip.routeId",
+        "target_field": "route",
+        "max_matches": "1"
+      }
+    },
+    {
+      "enrich": {
+        "description": "Add 'stop' data based on 'stopId'",
+        "policy_name": "wmata-rail-stops-policy",
+        "field": "vehicle.stopId",
+        "target_field": "stop",
+        "max_matches": "1"
+      }
+    },
+    {
+      "enrich": {
+        "description": "Add 'trip' data based on 'tripId'",
+        "policy_name": "wmata-rail-trips-policy",
+        "field": "vehicle.trip.tripId",
+        "target_field": "trip",
+        "max_matches": "1"
+      }
+    }
+  ]
+}

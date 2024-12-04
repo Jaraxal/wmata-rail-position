@@ -1,0 +1,7 @@
+{
+  "match": {
+    "indices": "wmata-rail-routes",
+    "match_field": "route_id",
+    "enrich_fields": ["agency_id","route_short_name","route_long_name","route_type","route_url","route_color","route_text_color"]
+  }
+}

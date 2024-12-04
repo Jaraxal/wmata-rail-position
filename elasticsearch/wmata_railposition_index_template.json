@@ -1,0 +1,14 @@
+{
+    "index_patterns": [
+        "wmata-rail-position"
+    ],
+    "data_stream": {},
+    "composed_of": [
+        "wmata-rail-position-mappings",
+        "wmata-rail-position-settings"
+    ],
+    "priority": 500,
+    "_meta": {
+        "description": "Index Template for WMATA GTFS RT rail position data."
+    }
+}

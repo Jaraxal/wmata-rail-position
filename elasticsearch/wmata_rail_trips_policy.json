@@ -1,0 +1,7 @@
+{
+  "match": {
+    "indices": "wmata-rail-trips",
+    "match_field": "trip_id",
+    "enrich_fields": ["route_id","service_id","trip_headsign","direction_id","block_id","shape_id","scheduled_trip_id","train_id"]
+  }
+}
