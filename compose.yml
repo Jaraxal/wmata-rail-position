@@ -1,0 +1,18 @@
+services:
+  wmata-rail-position:
+    container_name: wmata-rail-position-python
+    hostname: wmata-rail-position-python
+    tty: true
+    environment:
+       CONFIG_SECRETS_FILE: /run/secrets/config_secrets
+       PYTHONUNBUFFERED: 1
+    image: wmata-rail-position-python
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    restart: on-failure:3
+    secrets:
+      - config_secrets
+secrets:
+  config_secrets:
+    file: ./app/config/secrets.toml
