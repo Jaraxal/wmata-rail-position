@@ -5,17 +5,18 @@ import logging.config
 import sys
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, Dict, Generator, List
 
 import ecs_logging
 import elasticapm
 import requests
 from config import config as CFG
-from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import ConnectionError, RequestError, TransportError
 from elasticsearch.helpers import streaming_bulk
 from google.protobuf.json_format import MessageToDict
 from google.transit import gtfs_realtime_pb2
+
+from elasticsearch import Elasticsearch
 
 
 def configure_logging():
@@ -170,8 +171,8 @@ def format_data(records: gtfs_realtime_pb2.FeedMessage) -> List[Dict[str, Any]]:
 
             # Extract location data if available
             if (
-                record["vehicle"]["position"]["longitude"] and
-                record["vehicle"]["position"]["latitude"]
+                record["vehicle"]["position"]["longitude"]
+                and record["vehicle"]["position"]["latitude"]
             ):
                 record["location"] = {
                     "lon": record["vehicle"]["position"]["longitude"],
@@ -295,7 +296,7 @@ def main():
         apm_client.begin_transaction(transaction_type="script")
 
         raw_data = query_wmata_api(
-            url=CFG["SECRETS"]["WMATA_API_URL"],
+            url=CFG["SETTINGS"]["WMATA_API_URL"],
             api_key=CFG["SECRETS"]["WMATA_API_KEY"],
         )
 
