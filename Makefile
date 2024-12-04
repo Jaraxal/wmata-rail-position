@@ -117,11 +117,15 @@ delete-k8s-deployment: ## Delete k8s deployment
 	#kubectl delete -f wmata-bus-position-python-deployment.yaml
 
 .PHONY: clean
-clean: ## Clean up the virtual environment and Python cache files
+clean: ## Clean up virtual environment and other generated files
 	@echo "Running target: clean"
 	@rm -rf $(VENV)
-	@find . -type f -name '*.pyc' -delete
-	@find . -type d -name '__pycache__' -delete
+	@find . -type d -name '__pycache__' -exec rm -r {} +
+	@find . -type f -name '*.pyc' -exec rm -f {} +
+	@find . -type f -name '*.pyo' -exec rm -f {} +
+	@find . -type f -name '*.log' -exec rm -f {} +
+	@find . -type f -name '*.egg-info' -exec rm -rf {} +
+	@find . -type f -name '*.dist-info' -exec rm -rf {} +
 
 .PHONY: lint
 lint: ## Lint the Python source code
