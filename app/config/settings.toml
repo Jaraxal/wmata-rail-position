@@ -1,0 +1,12 @@
+[SETTINGS]
+# Elastics configuration
+INDEX_NAME = "wmata-rail-position"
+
+# APM configuration
+APM_SERVICE_VERSION = "2.0"
+APM_ENVIRONMENT = "Development"
+APM_SERVICE_NAME = "wmata-rail-position"
+
+# WMATA API configuration
+WMATA_API_URL = "https://api.wmata.com/gtfs/rail-gtfsrt-vehiclepositions.pb"
+SLEEP_DURATION = "90"
