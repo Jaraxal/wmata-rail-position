@@ -170,8 +170,8 @@ def format_data(records: gtfs_realtime_pb2.FeedMessage) -> List[Dict[str, Any]]:
 
             # Extract location data if available
             if (
-                record["vehicle"]["position"]["longitude"]
-                and record["vehicle"]["position"]["latitude"]
+                record["vehicle"]["position"]["longitude"] and
+                record["vehicle"]["position"]["latitude"]
             ):
                 record["location"] = {
                     "lon": record["vehicle"]["position"]["longitude"],
