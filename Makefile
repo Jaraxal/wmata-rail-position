@@ -150,6 +150,11 @@ delete-k8s-deployment: ## Delete k8s deployment
 .PHONY: clean
 clean: ## Clean up virtual environment and other generated files
 	@echo "Running target: clean"
+	@if [ -d $(VENV) ]; then \
+		echo "Removing existing virtual environment ..."; \
+		rm -rf $(VENV); \
+	fi
+
 	@find . -type d -name '__pycache__' -exec rm -r {} +
 	@find . -type f -name '*.pyc' -exec rm -f {} +
 	@find . -type f -name '*.pyo' -exec rm -f {} +
