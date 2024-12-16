@@ -1,13 +1,14 @@
 {
-    "template": {
-        "settings": {
-            "index.lifecycle.name": "wmata-rail-position",
-            "index.lifecycle.rollover_alias": "wmata-rail-position",
-            "index.number_of_shards": "1",
-            "index.default_pipeline": "wmata-rail-lookup"
-        }
-    },
-    "_meta": {
-        "description": "Index Settings for WMATA GTFS RT rail position data."
+  "template": {
+    "settings": {
+      "index.lifecycle.name": "wmata-rail-position",
+      "index.lifecycle.rollover_alias": "wmata-rail-position",
+      "index.number_of_shards": "1",
+      "index.default_pipeline": "wmata-rail-lookup",
+      "index.codec": "best_compression"
     }
+  },
+  "_meta": {
+    "description": "Index Settings for WMATA GTFS RT rail position data."
+  }
 }
