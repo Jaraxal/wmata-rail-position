@@ -5,7 +5,8 @@ import logging.config
 import sys
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, Generator, List
+from collections.abc import Generator
+from typing import Any
 
 import elasticapm
 import requests
@@ -74,7 +75,7 @@ def query_wmata_api(url: str, api_key: str) -> gtfs_realtime_pb2.FeedMessage | N
             return None
 
 
-def format_data(records: gtfs_realtime_pb2.FeedMessage) -> List[Dict[str, Any]]:  # type: ignore
+def format_data(records: gtfs_realtime_pb2.FeedMessage) -> list[dict[str, Any]]:  # type: ignore
     with elasticapm.capture_span("format_data"):  # type: ignore
         record_list = []
 
@@ -88,15 +89,11 @@ def format_data(records: gtfs_realtime_pb2.FeedMessage) -> List[Dict[str, Any]]:
             record["hash"] = record_hash
 
             # Extract location data if available
-            if "position" in record["vehicle"]:
-                if (
-                    record["vehicle"]["position"]["longitude"]
-                    and record["vehicle"]["position"]["latitude"]
-                ):
-                    record["location"] = {
-                        "lon": record["vehicle"]["position"]["longitude"],
-                        "lat": record["vehicle"]["position"]["latitude"],
-                    }
+            if "position" in record["vehicle"] and record["vehicle"]["position"]["longitude"] and record["vehicle"]["position"]["latitude"]:
+                record["location"] = {
+                    "lon": record["vehicle"]["position"]["longitude"],
+                    "lat": record["vehicle"]["position"]["latitude"],
+                }
 
             record["@timestamp"] = format_unix_timestamp(record["vehicle"]["timestamp"])
 
@@ -104,21 +101,17 @@ def format_data(records: gtfs_realtime_pb2.FeedMessage) -> List[Dict[str, Any]]:
         return record_list
 
 
-def send_to_elasticsearch(
-    es_client: Elasticsearch, records: List[Dict[str, Any]], index_name: str
-) -> None:
+def send_to_elasticsearch(es_client: Elasticsearch, records: list[dict[str, Any]], index_name: str) -> None:
     """
     Send data to Elasticsearch for indexing.
 
     Args:
         es_client (Elasticsearch): Elasticsearch client instance.
-        records (List[Dict[str, Any]]): Data records to index.
+        records (list[dict[str, Any]]): Data records to index.
         index_name (str): Elasticsearch index name.
     """
     with elasticapm.capture_span(name="send_to_elasticsearch"):  # type: ignore
-        logger.info(
-            f"Sending {len(records)} records to Elasticsearch index {index_name}."
-        )
+        logger.info(f"Sending {len(records)} records to Elasticsearch index {index_name}.")
         try:
             for ok, action in streaming_bulk(
                 client=es_client,
@@ -131,18 +124,16 @@ def send_to_elasticsearch(
             logger.error(f"Error during Elasticsearch indexing: {e}")
 
 
-def document_generator(
-    records: List[Dict[str, Any]], index_name: str
-) -> Generator[Dict[str, Any], None, None]:
+def document_generator(records: list[dict[str, Any]], index_name: str) -> Generator[dict[str, Any], None, None]:
     """
     Generate documents for bulk Elasticsearch indexing.
 
     Args:
-        records (List[Dict[str, Any]]): Data records to index.
+        records (list[dict[str, Any]]): Data records to index.
         index_name (str): Elasticsearch index name.
 
     Yields:
-        Dict[str, Any]: Document for Elasticsearch indexing.
+        dict[str, Any]: Document for Elasticsearch indexing.
     """
     for record in records:
         yield {
@@ -154,7 +145,6 @@ def document_generator(
 
 
 def main():
-
     ES_URL = loader.get("ES_URL", "secrets")
     ES_USERNAME = loader.get("ES_USERNAME", "secrets")
     ES_PASSWORD = loader.get("ES_PASSWORD", "secrets")
@@ -168,9 +158,7 @@ def main():
     # Validate the Elasticsearch connection
     try:
         if not es_client.ping():
-            logger.error(
-                "Failed to connect to Elasticsearch. Please check the configuration."
-            )
+            logger.error("Failed to connect to Elasticsearch. Please check the configuration.")
             sys.exit(1)
         else:
             logger.info("Successfully connected to Elasticsearch.")
@@ -191,7 +179,7 @@ def main():
             "SERVICE_NAME": APM_SERVICE_NAME,
             "SECRET_TOKEN": APM_SECRET_TOKEN,
             "ENVIRONMENT": APM_ENVIRONMENT,
-            "SERVICE_VERSION": APM_SERVICE_VERSION
+            "SERVICE_VERSION": APM_SERVICE_VERSION,
         }
     )
 
@@ -205,16 +193,11 @@ def main():
     while True:
         apm_client.begin_transaction(transaction_type="script")
 
-        raw_data = query_wmata_api(
-            url=WMATA_API,
-            api_key=WMATA_API_KEY
-        )
+        raw_data = query_wmata_api(url=WMATA_API, api_key=WMATA_API_KEY)
 
         if raw_data:
             formatted_data = format_data(raw_data)
-            send_to_elasticsearch(
-                es_client, formatted_data, INDEX_NAME
-            )
+            send_to_elasticsearch(es_client, formatted_data, INDEX_NAME)
             apm_client.end_transaction(__name__, result="success")
 
         else:

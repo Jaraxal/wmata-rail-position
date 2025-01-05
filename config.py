@@ -47,8 +47,8 @@ class ConfigLoader:
 
         # Load environment variables
 
-        #self.settings["DEBUG"] = os.getenv("DEBUG", "FALSE")
-        #self.settings["MODE"] = os.getenv("MODE", "STABLE")
+        # self.settings["DEBUG"] = os.getenv("DEBUG", "FALSE")
+        # self.settings["MODE"] = os.getenv("MODE", "STABLE")
 
         print(self.settings)
         print(self.secrets)
