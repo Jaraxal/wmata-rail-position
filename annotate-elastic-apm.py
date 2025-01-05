@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 File: annotate-elastic-apm.py
 Author: Michael Young
@@ -31,12 +30,12 @@ Example:
 """
 
 import argparse
+import datetime
 import json
-import sys
-from datetime import datetime, timezone
 
 import requests
-from app.config import config as CFG
+
+import config
 
 
 def main():
@@ -53,31 +52,29 @@ def main():
     Returns:
         None
     """
-    # Validate the configuration
-    missing_config = False
+    loader = config.ConfigLoader()
+    loader.load_config()
 
-    # Check required secrets
-    for secrets in ("ES_USERNAME", "ES_PASSWORD"):
-        if secrets not in CFG["SECRETS"].keys() and not CFG["SECRETS"][secrets]:
-            print(f"{secrets} is not set in app/config/.secrets.toml!")
-            missing_config = True
-
-    # Check required settings
-    for settings in (
-        "KB_URL",
+    # Define required settings and secrets
+    REQUIRED_SETTINGS = [
         "APM_SERVICE_NAME",
         "APM_SERVICE_VERSION",
         "APM_ENVIRONMENT",
-    ):
-        if settings not in CFG["SETTINGS"].keys() and not CFG["SETTINGS"][settings]:
-            print(f"{settings} is not set in app/config/settings.toml!")
-            missing_config = True
+    ]
 
-    if missing_config:
-        sys.exit(1)
+    REQUIRED_SECRETS = [
+        "KB_URL",
+        "ES_USERNAME",
+        "ES_PASSWORD",
+        "APM_SECRET_TOKEN",
+        "APM_SERVER_URL",
+    ]
+
+    # Validate required keys
+    loader.validate_config(REQUIRED_SETTINGS, REQUIRED_SECRETS)
 
     # Prepare request URL and headers
-    url = f"{CFG['SETTINGS']['KB_URL']}/api/apm/services/{CFG['SETTINGS']['APM_SERVICE_NAME']}/annotation"
+    url = f"{loader.get('KB_URL', "secrets")}/api/apm/services/{loader.get('APM_SERVICE_NAME')}/annotation"
 
     header = {
         "Content-Type": "application/json",
@@ -85,22 +82,16 @@ def main():
     }
 
     # Set the version and message for the annotation
-    if args.version:
-        version = args.version
-    else:
-        version = f"{CFG['SETTINGS']['APM_SERVICE_VERSION']}"
+    version = args.version if args.version else f"{loader.get('APM_SERVICE_VERSION')}"
 
-    if args.message:
-        message = f"{version} - {args.message}"
-    else:
-        message = f"{version}"
+    message = f"{version} - {args.message}" if args.message else f"{version}"
 
     # Prepare the data payload for the request
     data = {
         "@timestamp": formatted_date,
         "service": {
             "version": version,
-            "environment": CFG["SETTINGS"]["APM_ENVIRONMENT"],
+            "environment": loader.get("APM_ENVIRONMENT"),
         },
         "message": message,
     }
@@ -110,7 +101,7 @@ def main():
         url,
         headers=header,
         data=json.dumps(data),
-        auth=(CFG["SECRETS"]["ES_USERNAME"], CFG["SECRETS"]["ES_PASSWORD"]),
+        auth=(loader.get("ES_USERNAME", "secrets"), loader.get("ES_PASSWORD", "secrets")),
     )
 
     # Print the response from the API
@@ -128,30 +119,24 @@ if __name__ == "__main__":
     Command-line arguments:
         -m, --message: Optional message to be included in the APM annotation.
         -v, --version: Optional version number of the service to be annotated.
-    
+
     Returns:
         None
     """
     # Initialize argument parser
-    parser = argparse.ArgumentParser(
-        description="Script to annotate an APM service in Kibana using the APM annotation API."
-    )
+    parser = argparse.ArgumentParser(description="Script to annotate an APM service in Kibana using the APM annotation API.")
 
     # Adding optional argument for custom message
-    parser.add_argument(
-        "-m", "--message", help="Short message to be displayed for APM annotation"
-    )
+    parser.add_argument("-m", "--message", help="Short message to be displayed for APM annotation")
 
     # Adding optional argument for service version
-    parser.add_argument(
-        "-v", "--version", help="Service version number for APM annotation"
-    )
+    parser.add_argument("-v", "--version", help="Service version number for APM annotation")
 
     # Read arguments from command line
     args = parser.parse_args()
 
     # Get the current date and time in UTC
-    now = datetime.now(timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
 
     # Format the date and time as desired for the APM annotation
     formatted_date = now.strftime("%Y-%m-%dT%H:%M:%SZ")

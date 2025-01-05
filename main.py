@@ -7,96 +7,15 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Dict, Generator, List
 
-import ecs_logging
 import elasticapm
 import requests
-from config import config as CFG
-from elasticsearch.exceptions import (ConnectionError, RequestError,
-                                      TransportError)
+from elasticsearch.exceptions import ConnectionError, RequestError, TransportError
 from elasticsearch.helpers import streaming_bulk
 from google.protobuf.json_format import MessageToDict
 from google.transit import gtfs_realtime_pb2
-
+import config
 from elasticsearch import Elasticsearch
-
-
-def configure_logging():
-    """
-    Configures structured logging with ECS (Elastic Common Schema) formatting.
-
-    This function sets up the logging configuration for the application, enabling
-    structured log output in ECS format. Logs are output to the console using
-    the `ecs_logging.StdlibFormatter`. The configuration includes a root logger
-    and an application-specific logger.
-
-    Logging Configuration:
-        - **Formatters**: Uses the ECS formatter (`ecs_logging.StdlibFormatter`) for structured logs.
-        - **Handlers**: Configures a console handler to output logs to `stdout`.
-        - **Root Logger**: Logs messages at the `INFO` level and outputs them to the console.
-        - **Application Logger**: Configures a logger named `wmata-rail-position` with the same console handler,
-          set to `INFO` level, and prevents propagation to the root logger.
-
-    Dependencies:
-        - `ecs_logging`: A library that provides an ECS-compatible formatter for Python logging.
-        - `logging.config.dictConfig`: Used to apply the logging configuration.
-
-    Notes:
-        - This setup ensures that all logs are consistent with ECS, making them compatible
-          with tools like Elastic Observability for centralized monitoring and analysis.
-        - The `wmata-rail-position` logger can be used for application-specific logging needs.
-
-    """
-    logging_config = {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "ecs": {  # ECS formatter for structured logs
-                "()": ecs_logging.StdlibFormatter,
-            }
-        },
-        "handlers": {
-            "console": {  # Console handler with ECS formatter
-                "class": "logging.StreamHandler",
-                "formatter": "ecs",
-                "stream": "ext://sys.stdout",
-            }
-        },
-        "root": {  # Root logger
-            "level": "INFO",
-            "handlers": ["console"],
-        },
-        "loggers": {
-            "wmata-rail-position": {  # Application-specific logger
-                "level": "INFO",
-                "handlers": ["console"],
-                "propagate": False,
-            }
-        },
-    }
-
-    logging.config.dictConfig(logging_config)
-
-
-def validate_config(cfg: dict, required_keys: List[str], category: str) -> None:
-    """
-    Validates the presence of required keys in a specific configuration category.
-    Logs missing keys and exits the program if any are missing.
-
-    :param cfg: The configuration dictionary to validate.
-    :param required_keys: A list of required keys to check in the configuration.
-    :param category: The category name (e.g., 'SETTINGS' or 'SECRETS').
-    """
-    missing_keys = [
-        key
-        for key in required_keys
-        if key not in cfg.get(category, {}) or not cfg[category][key]
-    ]
-
-    if missing_keys:
-        logger.error(f"Missing configuration {category.lower()} in app/config/{category.lower()}.toml:")
-        for key in missing_keys:
-            logger.error(f" - {key}")
-        sys.exit(1)
+from logger import configure_logging
 
 
 def format_unix_timestamp(timestamp: int) -> str:
@@ -169,11 +88,15 @@ def format_data(records: gtfs_realtime_pb2.FeedMessage) -> List[Dict[str, Any]]:
             record["hash"] = record_hash
 
             # Extract location data if available
-            if (record["vehicle"]["position"]["longitude"] and record["vehicle"]["position"]["latitude"]):
-                record["location"] = {
-                    "lon": record["vehicle"]["position"]["longitude"],
-                    "lat": record["vehicle"]["position"]["latitude"],
-                }
+            if "position" in record["vehicle"]:
+                if (
+                    record["vehicle"]["position"]["longitude"]
+                    and record["vehicle"]["position"]["latitude"]
+                ):
+                    record["location"] = {
+                        "lon": record["vehicle"]["position"]["longitude"],
+                        "lat": record["vehicle"]["position"]["latitude"],
+                    }
 
             record["@timestamp"] = format_unix_timestamp(record["vehicle"]["timestamp"])
 
@@ -193,7 +116,9 @@ def send_to_elasticsearch(
         index_name (str): Elasticsearch index name.
     """
     with elasticapm.capture_span(name="send_to_elasticsearch"):  # type: ignore
-        logger.info(f"Sending {len(records)} records to Elasticsearch index {index_name}.")
+        logger.info(
+            f"Sending {len(records)} records to Elasticsearch index {index_name}."
+        )
         try:
             for ok, action in streaming_bulk(
                 client=es_client,
@@ -230,40 +155,22 @@ def document_generator(
 
 def main():
 
-    # Define required settings and secrets
-    required_settings = [
-        "INDEX_NAME",
-        "APM_SERVICE_NAME",
-        "APM_SERVICE_VERSION",
-        "APM_ENVIRONMENT",
-        "WMATA_API_URL",
-        "SLEEP_DURATION",
-    ]
-
-    required_secrets = [
-        "ES_USERNAME",
-        "ES_PASSWORD",
-        "ES_URL",
-        "KB_URL",
-        "APM_SECRET_TOKEN",
-        "APM_SERVER_URL",
-        "WMATA_API_KEY",
-    ]
-
-    # Validate configurations
-    validate_config(CFG, required_settings, "SETTINGS")
-    validate_config(CFG, required_secrets, "SECRETS")
+    ES_URL = loader.get("ES_URL", "secrets")
+    ES_USERNAME = loader.get("ES_USERNAME", "secrets")
+    ES_PASSWORD = loader.get("ES_PASSWORD", "secrets")
 
     # Initialize Elasticsearch client
     es_client = Elasticsearch(
-        CFG["SECRETS"]["ES_URL"],
-        basic_auth=(CFG["SECRETS"]["ES_USERNAME"], CFG["SECRETS"]["ES_PASSWORD"]),
+        ES_URL,
+        basic_auth=(ES_USERNAME, ES_PASSWORD),
     )
 
     # Validate the Elasticsearch connection
     try:
         if not es_client.ping():
-            logger.error("Failed to connect to Elasticsearch. Please check the configuration.")
+            logger.error(
+                "Failed to connect to Elasticsearch. Please check the configuration."
+            )
             sys.exit(1)
         else:
             logger.info("Successfully connected to Elasticsearch.")
@@ -271,43 +178,83 @@ def main():
         logger.error(f"Elasticsearch connection error: {e}")
         sys.exit(1)
 
+    APM_SERVER_URL = loader.get("APM_SERVER_URL", "secrets")
+    APM_SERVICE_NAME = loader.get("APM_SERVICE_NAME")
+    APM_SECRET_TOKEN = loader.get("APM_SECRET_TOKEN", "secrets")
+    APM_ENVIRONMENT = loader.get("APM_ENVIRONMENT")
+    APM_SERVICE_VERSION = loader.get("APM_SERVICE_VERSION")
+
     # Create Elastic APM client
     apm_client = elasticapm.Client(
         {
-            "SERVER_URL": CFG["SECRETS"]["APM_SERVER_URL"],
-            "SERVICE_NAME": CFG["SETTINGS"]["APM_SERVICE_NAME"],
-            "SECRET_TOKEN": CFG["SECRETS"]["APM_SECRET_TOKEN"],
-            "ENVIRONMENT": CFG["SETTINGS"]["APM_ENVIRONMENT"],
-            "SERVICE_VERSION": CFG["SETTINGS"]["APM_SERVICE_VERSION"],
+            "SERVER_URL": APM_SERVER_URL,
+            "SERVICE_NAME": APM_SERVICE_NAME,
+            "SECRET_TOKEN": APM_SECRET_TOKEN,
+            "ENVIRONMENT": APM_ENVIRONMENT,
+            "SERVICE_VERSION": APM_SERVICE_VERSION
         }
     )
 
     elasticapm.instrument()  # type: ignore
 
+    WMATA_API = loader.get("WMATA_API_URL")
+    WMATA_API_KEY = loader.get("WMATA_API_KEY", "secrets")
+    SLEEP_DURATION = int(loader.get("SLEEP_DURATION"))
+    INDEX_NAME = loader.get("INDEX_NAME")
+
     while True:
         apm_client.begin_transaction(transaction_type="script")
 
-        raw_data = query_wmata_api(url=CFG["SETTINGS"]["WMATA_API_URL"], api_key=CFG["SECRETS"]["WMATA_API_KEY"],)
+        raw_data = query_wmata_api(
+            url=WMATA_API,
+            api_key=WMATA_API_KEY
+        )
 
         if raw_data:
             formatted_data = format_data(raw_data)
-            send_to_elasticsearch(es_client, formatted_data, CFG["SETTINGS"]["INDEX_NAME"])
+            send_to_elasticsearch(
+                es_client, formatted_data, INDEX_NAME
+            )
             apm_client.end_transaction(__name__, result="success")
 
         else:
             apm_client.end_transaction(__name__, result="failure")
 
         # Sleep to avoid being throttled by the WMATA API
-        logger.info(f"Sleeping for {CFG['SETTINGS']['SLEEP_DURATION']} seconds.")
-        time.sleep(int(CFG["SETTINGS"]["SLEEP_DURATION"]))
+        logger.info(f"Sleeping for {SLEEP_DURATION} seconds.")
+        time.sleep(SLEEP_DURATION)
 
 
-# Configure logging at module level so it's accessible globally
+# Configure logging at module level
 configure_logging()
+logger = logging.getLogger()
 
-# Create the logger for the application
-logger = logging.getLogger("wmata-rail-position")
-logger.info("Logging configured successfully!")
+
+loader = config.ConfigLoader()
+loader.load_config()
+
+# Define required settings and secrets
+REQUIRED_SETTINGS = [
+    "INDEX_NAME",
+    "APM_SERVICE_NAME",
+    "APM_SERVICE_VERSION",
+    "APM_ENVIRONMENT",
+    "WMATA_API_URL",
+    "SLEEP_DURATION",
+]
+
+REQUIRED_SECRETS = [
+    "ES_USERNAME",
+    "ES_PASSWORD",
+    "ES_URL",
+    "KB_URL",
+    "APM_SECRET_TOKEN",
+    "APM_SERVER_URL",
+    "WMATA_API_KEY",
+]
+
+# Validate required keys
+loader.validate_config(REQUIRED_SETTINGS, REQUIRED_SECRETS)
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,11 @@
+# Elasticsearch server configuration
+INDEX_NAME = "wmata-rail-position"
+
+# APM Configuration
+APM_SERVICE_VERSION = "1.2"
+APM_ENVIRONMENT = "Production"
+APM_SERVICE_NAME = "wmata-rail-positions"
+
+# WMATA API Configuration
+WMATA_API_URL = "https://api.wmata.com/gtfs/rail-gtfsrt-vehiclepositions.pb"
+SLEEP_DURATION = "90"

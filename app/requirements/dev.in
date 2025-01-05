@@ -1,4 +1,0 @@
--r prod.in
-pytest
-black
-flake8

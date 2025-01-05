@@ -1,0 +1,29 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wmata-rail-positions
+  namespace: default
+  labels:
+    app: wmata-rail-positions
+spec:
+  selector:
+    matchLabels:
+      app: wmata-rail-positions
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: wmata-rail-positions
+    spec:
+      containers:
+        - name: wmata-rail-positions
+          image: wmata-rail-positions-python
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "500m"
+            limits:
+              memory: "128Mi"
+              cpu: "1000m"
