@@ -1,11 +1,7 @@
 #!/bin/sh
 
 # Load environment variables from file
-#export $(egrep -v '^#' ../app/.env | xargs)
-
-export ES_USERNAME="elastic"
-export ES_PASSWORD="eOHt7mLwh7CmCZM1B2HQs8Qp"
-export ES_URL="https://myoung-demo.es.us-east-1.aws.found.io:443"
+export $(egrep -v '^#' ../config/.env | xargs)
 
 echo "Creating WMATA rail position Elasticseach setttings ..."
 
