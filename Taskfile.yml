@@ -1,0 +1,116 @@
+version: '3'
+
+vars:
+  PROJECT: wmata-rail-positions
+  VERSION: 0.1.0
+  IMAGE_NAME: wmata-rail-positions-python
+  COMPOSE_FILE: compose.yml
+  PYTHON: uv run python
+  PIP: uv pip
+  VENV: uv venv .venv
+  UV_SYNC: uv sync
+  DOCKER: docker
+  DOCKER_COMPOSE: '{{.DOCKER}} compose -f {{.COMPOSE_FILE}} -p {{.PROJECT}}'
+
+tasks:
+  default:
+    desc: Display help information (default task)
+    cmds:
+      - task help
+
+  help:
+    desc: Display help information about available tasks
+    cmds:
+      - task --list
+
+  init:
+    desc: Initialize virtual environment
+    cmds:
+      - |
+        if [ ! -d .venv ]; then
+          echo "Creating virtual environment..."
+          {{.VENV}}
+        else
+          echo "Virtual environment already exists."
+        fi
+      - task sync
+      - echo "Virtual environment initialized."
+
+  sync:
+    desc: Synchronize Python dependencies
+    cmds:
+      - echo "Synchronizing Python dependencies..."
+      - "{{.UV_SYNC}}"
+
+  test:
+    desc: Run tests with pytest
+    cmds:
+      - echo "Running tests..."
+      - "{{.PYTHON}} -m pytest ./app/tests"
+
+  lint:
+    desc: Run linting with ruff
+    cmds:
+      - echo "Linting code..."
+      - uvx ruff check || {{.PYTHON}} -m ruff check
+
+  format:
+    desc: Format code with ruff
+    cmds:
+      - echo "Formatting code..."
+      - uvx ruff format || {{.PYTHON}} -m ruff format
+
+  build:
+    desc: Build the container image
+    cmds:
+      - echo "Building container image with {{.DOCKER}}..."
+      - "{{.DOCKER}} build -t {{.IMAGE_NAME}} -f Dockerfile ."
+
+  run:
+    desc: Run the application locally
+    cmds:
+      - echo "Running application..."
+      - "{{.PYTHON}} main.py"
+
+  up:
+    desc: Start container services
+    cmds:
+      - echo "Starting container services with {{.DOCKER}}..."
+      - "{{.DOCKER_COMPOSE}} up -d"
+
+  start:
+    desc: Start existing container services without recreating
+    cmds:
+      - echo "Starting existing container services with {{.DOCKER}}..."
+      - "{{.DOCKER_COMPOSE}} start"
+
+  stop:
+    desc: Stop container services without removing
+    cmds:
+      - echo "Stopping container services with {{.DOCKER}}..."
+      - "{{.DOCKER_COMPOSE}} stop"
+
+  down:
+    desc: Stop and remove container services
+    cmds:
+      - echo "Stopping and removing container services with {{.DOCKER}}..."
+      - "{{.DOCKER_COMPOSE}} down"
+
+  clean:
+    desc: Clean up virtual environment, container resources, and generated files
+    cmds:
+      - |
+        echo "Cleaning up environment..."
+        if [ -d .venv ]; then
+          echo "Removing virtual environment..."
+          rm -rf .venv
+        fi
+      - find . -type d -name '__pycache__' -exec rm -rf {} +
+      - find . -type f -name '*.pyc' -delete
+      - find . -type f -name '*.pyo' -delete
+      - find . -type f -name '*.log' -delete
+      - find . -type f -name '*.egg-info' -exec rm -rf {} +
+      - find . -type f -name '*.dist-info' -exec rm -rf {} +
+      - echo "Cleaning up container resources with {{.DOCKER}}..."
+      - "{{.DOCKER_COMPOSE}} down -v"
+      - "{{.DOCKER}} system prune -f"
