@@ -1,11 +1,9 @@
 services:
   wmata-rail-positions:
-    container_name: wmata-rail-positions-python
+    image: wmata-rail-positions-python
     tty: true
     environment:
       CONFIG_SECRETS_FILE: /run/secrets/config_secrets
-      PYTHONUNBUFFERED: 1
-    image: wmata-rail-positions-python
     build:
       context: ./
       dockerfile: Dockerfile
